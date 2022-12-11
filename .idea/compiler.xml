@@ -15,4 +15,12 @@
       <module name="json-diff-test" target="1.8" />
     </bytecodeTargetLevel>
   </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="json-diff" options="-Xlint:unchecked" />
+      <module name="json-diff-core" options="" />
+      <module name="json-diff-fastjson" options="" />
+      <module name="json-diff-jackson" options="" />
+    </option>
+  </component>
 </project>
