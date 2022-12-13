@@ -67,7 +67,7 @@ public class JacksonDiffTest {
                 "}";
         JsonDiff jsonDiff = newJsonDiff();
         //jsonDiff.ignoreDiffJsonPath("$.employee.fullName");
-        jsonDiff.ignoreDiffType(DiffType.ADD, "$.employee");
+        jsonDiff.excludeDiffByType(DiffType.ADD, "$.employee");
         List<ValueDifference> differenceList = jsonDiff.diff(s1, s2);
 
         Assert.assertTrue(differenceList.isEmpty());

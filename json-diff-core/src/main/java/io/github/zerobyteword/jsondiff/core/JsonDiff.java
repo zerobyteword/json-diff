@@ -9,8 +9,11 @@ public abstract class JsonDiff {
     public static final String ROOT_PATH = "$";
 
     private TreeMap<String, TreeSet<EqualTo>> equalMap = new TreeMap<>(JSON_PATH_COMPARATOR);
-    private final Set<String> ignoreDiffJsonPathSet = new HashSet<>();
-    private final Map<DiffType, Set<String>> ignoreDiffTypeMap = new HashMap<>();
+    private final Set<String> excludeDiffByJsonPathSet = new HashSet<>();
+    private final Map<DiffType, Set<String>> excludeDiffByTypeMap = new HashMap<>();
+
+    private final Set<String> includeDiffByJsonPathSet = new HashSet<>();
+    private final Map<DiffType, Set<String>> includeDiffByTypeMap = new HashMap<>();
     private static Comparator<String> JSON_PATH_COMPARATOR = (o1, o2) -> {
         if (o1.length() != o2.length()) {
             return o2.length() - o1.length();
@@ -29,53 +32,122 @@ public abstract class JsonDiff {
     };
 
     /**
-     * 根据jsonPath忽略diff的不一致
+     * 根据jsonPath排除diff的不一致的结果
      *
      * @param jsonPaths
      */
-    public void ignoreDiffJsonPath(String... jsonPaths) {
-        this.ignoreDiffJsonPathSet.addAll(Arrays.asList(jsonPaths));
+    public void excludeDiffByJsonPath(String... jsonPaths) {
+        this.excludeDiffByJsonPathSet.addAll(Arrays.asList(jsonPaths));
     }
 
     /**
-     * 根据jsonPath忽略diff的不一致
+     * 根据jsonPath排除diff的不一致的结果
      *
      * @param jsonPaths
      */
-    public void ignoreDiffJsonPath(List<String> jsonPaths) {
-        this.ignoreDiffJsonPathSet.addAll(jsonPaths);
+    public void excludeDiffByJsonPath(List<String> jsonPaths) {
+        this.excludeDiffByJsonPathSet.addAll(jsonPaths);
     }
 
     /**
-     * 忽略指定类型的diff不一致
+     * 排除指定类型的diff不一致的结果
      *
      * @param diffType
      * @param jsonPaths
      */
-    public void ignoreDiffType(DiffType diffType, String... jsonPaths) {
-        Set<String> set = this.ignoreDiffTypeMap.get(diffType);
+    public void excludeDiffByType(DiffType diffType, String... jsonPaths) {
+        Set<String> set = this.excludeDiffByTypeMap.get(diffType);
         if (set == null) {
             set = new HashSet<>(Arrays.asList(jsonPaths));
-            this.ignoreDiffTypeMap.put(diffType, set);
+            this.excludeDiffByTypeMap.put(diffType, set);
+        } else {
+            set.addAll(Arrays.asList(jsonPaths));
+        }
+    }
+
+
+    /**
+     * 排除指定类型的diff不一致的结果
+     *
+     * @param diffType
+     */
+    public void excludeDiffByType(DiffType diffType) {
+        excludeDiffByType(diffType, ROOT_PATH);
+    }
+
+    /**
+     * 排除指定类型的diff不一致的结果
+     *
+     * @param diffType
+     * @param jsonPaths
+     */
+    public void excludeDiffByType(DiffType diffType, List<String> jsonPaths) {
+        Set<String> set = this.excludeDiffByTypeMap.get(diffType);
+        if (set == null) {
+            set = new HashSet<>(jsonPaths);
+            this.excludeDiffByTypeMap.put(diffType, set);
+        } else {
+            set.addAll(jsonPaths);
+        }
+    }
+
+    /**
+     * 仅返回jsonPath下的diff的不一致
+     *
+     * @param jsonPaths
+     */
+    public void includeDiffByJsonPath(String... jsonPaths) {
+        this.includeDiffByJsonPathSet.addAll(Arrays.asList(jsonPaths));
+    }
+
+    /**
+     * 仅返回jsonPath下的diff的不一致
+     *
+     * @param jsonPaths
+     */
+    public void includeDiffByJsonPath(List<String> jsonPaths) {
+        this.includeDiffByJsonPathSet.addAll(jsonPaths);
+    }
+
+    /**
+     * 仅返回指定类型的diff不一致
+     *
+     * @param diffType
+     * @param jsonPaths
+     */
+    public void includeDiffByType(DiffType diffType, String... jsonPaths) {
+        Set<String> set = this.includeDiffByTypeMap.get(diffType);
+        if (set == null) {
+            set = new HashSet<>(Arrays.asList(jsonPaths));
+            this.includeDiffByTypeMap.put(diffType, set);
         } else {
             set.addAll(Arrays.asList(jsonPaths));
         }
     }
 
     /**
-     * 忽略指定类型的diff不一致
+     * 仅返回指定类型的diff不一致
      *
      * @param diffType
      * @param jsonPaths
      */
-    public void ignoreDiffType(DiffType diffType, List<String> jsonPaths) {
-        Set<String> set = this.ignoreDiffTypeMap.get(diffType);
+    public void includeDiffByType(DiffType diffType, List<String> jsonPaths) {
+        Set<String> set = this.includeDiffByTypeMap.get(diffType);
         if (set == null) {
             set = new HashSet<>(jsonPaths);
-            this.ignoreDiffTypeMap.put(diffType, set);
+            this.includeDiffByTypeMap.put(diffType, set);
         } else {
             set.addAll(jsonPaths);
         }
+    }
+
+    /**
+     * 仅返回指定类型的diff不一致
+     *
+     * @param diffType
+     */
+    public void includeDiffByType(DiffType diffType) {
+        includeDiffByType(diffType, ROOT_PATH);
     }
 
 
@@ -142,7 +214,6 @@ public abstract class JsonDiff {
     }
 
 
-
     private static Class<?> getComparatorType(EqualTo<?> equalTo) {
         ParameterizedType parameterizedType = (ParameterizedType) equalTo.getClass().getGenericInterfaces()[0];
         Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
@@ -152,6 +223,7 @@ public abstract class JsonDiff {
 
     /**
      * 添加是否相等比较器
+     *
      * @param jsonPath
      * @param equalTo
      */
@@ -168,6 +240,7 @@ public abstract class JsonDiff {
 
     /**
      * 比较两个json字符串的字符串
+     *
      * @param source 基础json字符串
      * @param target 目标json字符串
      * @return
@@ -189,15 +262,27 @@ public abstract class JsonDiff {
         }
         diff(toJsonNode(source), toJsonNode(target), differenceList, ROOT_PATH, ROOT_PATH);
         return differenceList.stream()
-                .filter(e -> this.ignoreDiffJsonPathSet.stream().noneMatch(s -> e.getJsonPath().startsWith(s)))
+                .filter(e -> this.excludeDiffByJsonPathSet.stream().noneMatch(s -> e.getJsonPath().startsWith(s)))
                 .filter(e -> {
-                    Set<String> set = this.ignoreDiffTypeMap.get(e.getDiffType());
+                    Set<String> set = this.excludeDiffByTypeMap.get(e.getDiffType());
                     if (set == null || set.isEmpty()) {
                         return true;
                     }
                     return set.stream().noneMatch(s -> e.getJsonPath().startsWith(s));
                 })
+                .filter(e -> isEmpty(this.includeDiffByJsonPathSet) || this.includeDiffByJsonPathSet.stream().anyMatch(s -> e.getJsonPath().startsWith(s)))
+                .filter(e -> {
+                    Set<String> set = this.includeDiffByTypeMap.get(e.getDiffType());
+                    if (set == null || set.isEmpty()) {
+                        return true;
+                    }
+                    return set.stream().anyMatch(s -> e.getJsonPath().startsWith(s));
+                })
                 .collect(Collectors.toList());
+    }
+
+    private boolean isEmpty(Collection collection) {
+        return collection == null || collection.isEmpty();
     }
 
     protected abstract Object toJsonNode(String source) throws Exception;
@@ -273,6 +358,7 @@ public abstract class JsonDiff {
 
     /**
      * 从jsonObject获取字段值
+     *
      * @param targetNode
      * @param fieldName
      * @return
